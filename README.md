@@ -1,10 +1,10 @@
-# AURA - Adaptive Web Agent
+# CogniParse - Adaptive Web Agent
 
-AURA is an intelligent web analysis tool that transforms any webpage into structured, mode-specific content using Google's Gemini AI.
+CogniParse is an intelligent web analysis tool that transforms any webpage into structured, mode-specific content using Google's Gemini AI.
 
-## What is AURA?
+## What is CogniParse?
 
-AURA analyzes webpages and adapts its output based on three distinct user modes:
+CogniParse analyzes webpages and adapts its output based on three distinct user modes:
 - **Student Mode**: Study notes, flashcards, definitions, and exam-ready materials
 - **Researcher Mode**: Methodology extraction, research findings, and academic insights
 - **Professional Mode**: KPIs, pricing analysis, SWOT, and business intelligence
@@ -17,23 +17,9 @@ AURA analyzes webpages and adapts its output based on three distinct user modes:
 - **Teleport Navigation**: Click action buttons to jump to sections within the sidebar
 - **Related Pages (Yellow Buttons)**: Opens real, relevant pages from the analyzed website in new tabs
 - **Agent Chat**: Ask follow-up questions about the analyzed content with proper Markdown formatting
-- **Smart Fallback**: When sections aren't found, AI provides relevant information
-- Real-time webpage loading and analysis
+- **Collapsible Notepad Drawer**: Save and manage notes from analyzed content (right sidebar)
+- **Gemini-powered Note Generation**: AI cleans and formats saved notes based on mode
 
-## Recent Updates
-
-### Teleport Navigation (Change 1)
-Action buttons now scroll to sections within the analysis sidebar instead of attempting to scroll the iframe (which fails due to cross-origin restrictions). Each section has a unique ID and clicking an action highlights and scrolls to that section.
-
-### Gemini Agent Chat (Change 2)
-After analyzing a webpage, a chat panel appears where you can ask follow-up questions. The AI assistant:
-- Uses the same webpage context from the analysis
-- Responds ONLY about the analyzed webpage
-- Behaves according to the selected mode's persona
-- Acts as an analysis agent, not a general chatbot
-
-### Smart Action Fallback
-If you click an action (e.g., "View Pricing") and that section wasn't extracted, the system automatically uses the Gemini agent to provide relevant information based on the webpage content.
 
 ## How to Run
 
@@ -45,28 +31,28 @@ If you click an action (e.g., "View Pricing") and that section wasn't extracted,
 
 ```bash
 # Install dependencies
-pip install -r aura/requirements.txt
+pip install -r requirements.txt
 
 # Set your Gemini API key
 export GEMINI_API_KEY=your_api_key_here
 
 # Run the application
-python aura/main.py
+python main.py
 ```
 
 The application will start on `http://localhost:5000`
 
-### Quick Start on Replit
-
-1. The project is pre-configured to run automatically
-2. Click the "Run" button
-3. The web interface will open showing the Wikipedia AI article
 
 ## Architecture
 
 ```
+[User] → [Frontend: Left Sidebar + Iframe + Right Notepad Drawer]
+       → [Flask Backend]
+       → [Gemini API]
+       → [Mode Logic + Notes Engine]
+
 +-----------------------------------------------------------+
-|                      AURA Frontend                         |
+|                   CogniParse Frontend                      |
 |  +-------------+                    +-----------------+    |
 |  |   Sidebar   |                    |   Web Viewer    |    |
 |  |  - URL Input|                    |   (iframe)      |    |
@@ -74,12 +60,17 @@ The application will start on `http://localhost:5000`
 |  |  - Results  |                    |   Wikipedia/    |    |
 |  |  - Actions  |                    |   Any URL       |    |
 |  |  - Agent    |                    |                 |    |
-|  |    Chat     |                    |                 |    |
-|  +-------------+                    +-----------------+    |
+|  |    Chat     |                    +-----------------+    |
+|  +-------------+                    +-------------+        |
+|                                     |  Notepad    |        |
+|                                     |  Drawer     |        |
+|                                     | (Right Side)|        |
+|                                     +-------------+        |
 +-----------------------------+-----------------------------+
                               |
                        POST /analyze
                        POST /chat
+                       POST /create_note
                               |
 +-----------------------------v-----------------------------+
 |                     Flask Backend                          |
@@ -99,33 +90,33 @@ The application will start on `http://localhost:5000`
 |                  |  Gemini Client   |                 |   |
 |                  |   (Gemini API)   |                 |   |
 |                  +------------------+                 |   |
+|                             |                         |   |
+|                  +------------------+                 |   |
+|                  |  Notes Engine    |                 |   |
+|                  +------------------+                 |   |
 +-----------------------------------------------------------+
 ```
 
 ## Project Structure
 
 ```
-/aura
-   |-- main.py                  # Flask app entry point
-   |-- agents/
-   |     |-- gemini_client.py   # Gemini API wrapper
-   |     |-- agent_core.py      # Core agent logic + chat
-   |     |-- mode_student.py    # Student transformation
-   |     |-- mode_researcher.py # Researcher transformation
-   |     |-- mode_professional.py # Professional transformation
-   |
-   |-- utils/
-   |     |-- dom_parser.py      # Parse webpage into sections
-   |     |-- fetcher.py         # Fetch webpage HTML
-   |
-   |-- templates/
-   |     |-- index.html         # Main UI with agent chat
-   |
-   |-- static/
-   |     |-- styles.css         # Styles including chat panel
-   |     |-- script.js          # Frontend logic with teleport
-   |
-   |-- requirements.txt
+/
+├── main.py                    # Flask app entry point
+├── agents/
+│   ├── gemini_client.py       # Gemini API wrapper
+│   ├── agent_core.py          # Core agent logic + chat + notes
+│   ├── mode_student.py        # Student transformation
+│   ├── mode_researcher.py     # Researcher transformation
+│   └── mode_professional.py   # Professional transformation
+├── utils/
+│   ├── dom_parser.py          # Parse webpage into sections
+│   └── fetcher.py             # Fetch webpage HTML
+├── templates/
+│   └── index.html             # Main UI with agent chat and notepad
+├── static/
+│   ├── styles.css             # Styles including chat panel and notepad
+│   └── script.js              # Frontend logic with teleport and notes
+└── requirements.txt
 ```
 
 ## Mode Explanations
@@ -153,6 +144,15 @@ Business-oriented analysis:
 - Pricing breakdown
 - SWOT analysis
 - Competitive insights
+
+## Notepad Feature
+
+The collapsible Notepad drawer on the right side allows you to:
+- **Save Notes**: Click "Save to Notes" on any extracted section
+- **AI-Cleaned Notes**: Gemini formats notes based on your selected mode
+- **Click to Discuss**: Click any saved note to send it to Agent Chat for further analysis
+- **Persistent Storage**: Notes are saved in browser localStorage
+- **Clear All**: Remove all saved notes with one click
 
 ## API Endpoints
 
@@ -200,6 +200,25 @@ Ask follow-up questions about the analyzed content.
 }
 ```
 
+### POST /create_note
+Create a cleaned note from section content.
+
+**Request:**
+```json
+{
+  "text": "Section content to save",
+  "mode": "student",
+  "context": "Analysis summary context"
+}
+```
+
+**Response:**
+```json
+{
+  "note": "Cleaned and formatted note content"
+}
+```
+
 ### POST /missing-section
 Get AI-generated information when a section isn't available.
 
@@ -229,3 +248,4 @@ The following URLs are recommended for testing:
 - **AI**: Google Gemini API (gemini-2.0-flash)
 - **Frontend**: HTML, CSS, JavaScript (no frameworks)
 - **Parsing**: BeautifulSoup, lxml
+- **Notes**: Gemini-powered note generation with localStorage persistence
