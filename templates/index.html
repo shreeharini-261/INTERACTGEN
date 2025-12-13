@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA - Adaptive Web Agent</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="logo">
+                <h1>AURA</h1>
+                <p class="tagline">Adaptive Web Agent</p>
+            </div>
+            
+            <div class="controls">
+                <div class="input-group">
+                    <label for="url-input">Website URL</label>
+                    <input type="url" id="url-input" placeholder="Enter webpage URL..." 
+                           value="https://en.wikipedia.org/wiki/Artificial_intelligence">
+                </div>
+                
+                <div class="input-group">
+                    <label for="mode-select">Analysis Mode</label>
+                    <select id="mode-select">
+                        <option value="student">Student Mode</option>
+                        <option value="researcher">Researcher Mode</option>
+                        <option value="professional">Professional Mode</option>
+                    </select>
+                </div>
+                
+                <div class="demo-urls">
+                    <label>Quick Demo URLs:</label>
+                    <button class="demo-btn" data-url="https://en.wikipedia.org/wiki/Artificial_intelligence">Wikipedia AI</button>
+                    <button class="demo-btn" data-url="https://www.srmist.edu.in/admissions/">SRM Admissions</button>
+                    <button class="demo-btn" data-url="https://www.nintendo.com/us/store/products/metroid-prime-4-beyond-nintendo-switch-2-edition-switch-2/">Nintendo!!</button>
+                </div>
+                
+                <button id="analyze-btn" class="analyze-btn">
+                    <span class="btn-text">Analyze</span>
+                    <span class="btn-loader" style="display: none;"></span>
+                </button>
+            </div>
+            
+            <div class="results-container" id="results-container">
+                <div class="welcome-message" id="welcome-message">
+                    <h3>Welcome to AURA</h3>
+                    <p>Enter a URL and select a mode to analyze any webpage.</p>
+                    <ul>
+                        <li><strong>Student:</strong> Study notes, flashcards, definitions</li>
+                        <li><strong>Researcher:</strong> Methods, findings, research gaps</li>
+                        <li><strong>Professional:</strong> KPIs, pricing, SWOT analysis</li>
+                    </ul>
+                </div>
+                
+                <div class="chat-output" id="chat-output" style="display: none;">
+                </div>
+                
+                <div class="agent-chat" id="agent-chat" style="display: none;">
+                    <div class="chat-header">
+                        <h4>Agent Chat</h4>
+                        <span class="chat-mode" id="chat-mode-label">Student Mode</span>
+                    </div>
+                    <div class="chat-messages" id="chat-messages">
+                    </div>
+                    <div class="chat-input-container">
+                        <input type="text" id="chat-input" placeholder="Ask about the analyzed page..." />
+                        <button id="chat-send-btn" class="chat-send-btn">Send</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="viewer">
+            <div class="viewer-header">
+                <span class="viewer-title" id="viewer-title">Web Preview</span>
+                <a href="" target="_blank" id="open-external" class="external-link" style="display: none;">Open in new tab</a>
+            </div>
+            <iframe id="web-iframe" src="https://en.wikipedia.org/wiki/Artificial_intelligence"></iframe>
+        </main>
+    </div>
+    
+    <script src="/static/script.js"></script>
+</body>
+</html>
