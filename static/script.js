@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const notepadDrawer = document.getElementById('notepadDrawer');
     const notesContainer = document.getElementById('notesContainer');
     const clearNotesBtn = document.getElementById('clearNotesBtn');
+    const closeNotesBtn = document.getElementById('closeNotesBtn');
 
     let currentAnalysisData = null;
     let currentUrl = null;
@@ -29,6 +30,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     notepadToggle.addEventListener('click', function() {
         notepadDrawer.classList.toggle('open');
+    });
+
+    closeNotesBtn.addEventListener('click', function() {
+        notepadDrawer.classList.remove('open');
+    });
+
+    // Close notepad when clicking outside of it
+    document.addEventListener('click', function(event) {
+        if (notepadDrawer.classList.contains('open') && 
+            !notepadDrawer.contains(event.target) && 
+            !notepadToggle.contains(event.target)) {
+            notepadDrawer.classList.remove('open');
+        }
     });
 
     clearNotesBtn.addEventListener('click', function() {
