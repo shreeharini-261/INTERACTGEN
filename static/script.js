@@ -109,12 +109,58 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function formatMarkdown(text) {
-        return text
+        let html = text
+            // Handle code blocks first
+            .replace(/```[\s\S]*?```/g, function(match) {
+                const code = match.replace(/```/g, '').trim();
+                return `<pre><code>${escapeHtml(code)}</code></pre>`;
+            })
+            // Handle bold
             .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+            .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+            // Handle italic
             .replace(/\*(.*?)\*/g, "<em>$1</em>")
-            .replace(/`(.*?)`/g, "<code>$1</code>")
-            .replace(/\n\n/g, "</p><p>")
+            .replace(/_([^_]+)_/g, "<em>$1</em>")
+            // Handle inline code
+            .replace(/`([^`]+)`/g, "<code>$1</code>")
+            // Handle headers
+            .replace(/^### (.*?)$/gm, "<h3>$1</h3>")
+            .replace(/^## (.*?)$/gm, "<h2>$1</h2>")
+            .replace(/^# (.*?)$/gm, "<h1>$1</h1>")
+            // Handle lists
+            .replace(/^\* (.*?)$/gm, "<li>$1</li>")
+            .replace(/^- (.*?)$/gm, "<li>$1</li>")
+            .replace(/^(\d+)\. (.*?)$/gm, "<li>$2</li>")
+            // Wrap consecutive list items in ul tags
+            .replace(/(<li>.*?<\/li>)/s, function(match) {
+                if (!match.includes('<ul>')) {
+                    return '<ul>' + match + '</ul>';
+                }
+                return match;
+            })
+            // Handle line breaks and paragraphs
+            .replace(/\n\n+/g, "</p><p>")
             .replace(/\n/g, "<br>");
+        
+        // Wrap in paragraph tags if not already
+        if (!html.startsWith('<')) {
+            html = '<p>' + html + '</p>';
+        } else if (!html.startsWith('<p>') && !html.startsWith('<h') && !html.startsWith('<pre') && !html.startsWith('<ul')) {
+            html = '<p>' + html + '</p>';
+        }
+        
+        return html;
+    }
+    
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, m => map[m]);
     }
 
     function addAgentMessage(message) {
