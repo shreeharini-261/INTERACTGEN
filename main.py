@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from agents.agent_core import analyze_webpage, agent_followup_response, handle_missing_section
+from agents.agent_core import analyze_webpage, agent_followup_response, handle_missing_section, create_note
 
 app = Flask(__name__, 
             template_folder='templates',
@@ -100,9 +100,31 @@ def missing_section():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/create_note', methods=['POST'])
+def create_note_endpoint():
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+        
+        text = data.get('text')
+        mode = data.get('mode', 'student')
+        context = data.get('context', '')
+        
+        if not text:
+            return jsonify({"error": "Text is required"}), 400
+        
+        note = create_note(text, mode, context)
+        
+        return jsonify({"note": note})
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/health')
 def health():
-    return jsonify({"status": "healthy", "service": "AURA"})
+    return jsonify({"status": "healthy", "service": "CogniParse"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

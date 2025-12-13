@@ -120,3 +120,27 @@ Provide a helpful response:"""
 
     response = generate_response(prompt)
     return f"'{section_label}' section was not found in the extracted content. Based on the webpage, here's what I found:\n\n{response}"
+
+def create_note(text, mode, context=""):
+    """Create a cleaned note from section content using Gemini"""
+    
+    mode_instructions = {
+        "student": "Format this as a concise study note that would be helpful for exam preparation.",
+        "researcher": "Format this as an academic research note with key findings and methodology insights.",
+        "professional": "Format this as a professional business note with actionable insights and key metrics."
+    }
+    
+    instruction = mode_instructions.get(mode, mode_instructions["student"])
+    
+    prompt = f"""{instruction}
+
+CONTENT TO SAVE:
+{text}
+
+CONTEXT:
+{context[:500] if context else 'No additional context'}
+
+Create a clean, well-formatted note. Keep it concise but informative. Do not include any preamble or explanation - just output the note content directly."""
+
+    response = generate_response(prompt)
+    return response.strip()

@@ -17,9 +17,136 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatSendBtn = document.getElementById('chat-send-btn');
     const chatModeLabel = document.getElementById('chat-mode-label');
 
+    const notepadToggle = document.getElementById('notepadToggle');
+    const notepadDrawer = document.getElementById('notepadDrawer');
+    const notesContainer = document.getElementById('notesContainer');
+    const clearNotesBtn = document.getElementById('clearNotesBtn');
+
     let currentAnalysisData = null;
     let currentUrl = null;
     let currentMode = 'student';
+    let cogniParseNotes = JSON.parse(localStorage.getItem('cogniParseNotes') || '[]');
+
+    notepadToggle.addEventListener('click', function() {
+        notepadDrawer.classList.toggle('open');
+    });
+
+    clearNotesBtn.addEventListener('click', function() {
+        cogniParseNotes = [];
+        localStorage.setItem('cogniParseNotes', JSON.stringify(cogniParseNotes));
+        updateNotepadUI();
+    });
+
+    function updateNotepadUI() {
+        notesContainer.innerHTML = '';
+        
+        if (cogniParseNotes.length === 0) {
+            notesContainer.innerHTML = '<p style="color: var(--text-secondary); font-size: 13px; text-align: center;">No notes saved yet. Analyze a page and click "Save to Notes" on any section.</p>';
+            return;
+        }
+        
+        cogniParseNotes.forEach((note, index) => {
+            const noteDiv = document.createElement('div');
+            noteDiv.className = 'note-item';
+            noteDiv.innerHTML = `
+                <div class="note-mode">${note.mode} Mode</div>
+                <div class="note-text">${note.text}</div>
+            `;
+            noteDiv.addEventListener('click', function() {
+                sendNoteToChat(note.text);
+            });
+            notesContainer.appendChild(noteDiv);
+        });
+    }
+
+    async function sendNoteToChat(noteText) {
+        if (!currentUrl) {
+            addAgentMessage("Please analyze a webpage first before discussing notes.");
+            return;
+        }
+
+        agentChat.style.display = 'block';
+        addUserMessage(`Analyze this saved note: ${noteText.substring(0, 100)}...`);
+        chatSendBtn.disabled = true;
+
+        try {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    url: currentUrl,
+                    message: `Analyze or expand this saved note: ${noteText}`,
+                    mode: currentMode
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Chat failed');
+            }
+
+            addAgentMessage(data.response);
+        } catch (error) {
+            addAgentMessage(`Error: ${error.message}`);
+        } finally {
+            chatSendBtn.disabled = false;
+        }
+
+        agentChat.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function saveToNotes(sectionContent, sectionTitle) {
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        try {
+            const response = await fetch('/create_note', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    text: `${sectionTitle}: ${sectionContent}`,
+                    mode: currentMode,
+                    context: currentAnalysisData ? currentAnalysisData.summary : ''
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to save note');
+            }
+
+            cogniParseNotes.push({
+                text: data.note,
+                mode: currentMode,
+                timestamp: new Date().toISOString()
+            });
+            localStorage.setItem('cogniParseNotes', JSON.stringify(cogniParseNotes));
+            updateNotepadUI();
+
+            btn.textContent = 'Saved!';
+            btn.classList.add('saved');
+        } catch (error) {
+            btn.textContent = 'Error - Try Again';
+            console.error('Save note error:', error);
+        } finally {
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.textContent = 'Save to Notes';
+                btn.classList.remove('saved');
+            }, 2000);
+        }
+    }
+
+    window.saveToNotes = saveToNotes;
+
+    updateNotepadUI();
 
     demoBtns.forEach(btn => {
         btn.addEventListener('click', function() {
@@ -110,39 +237,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function formatMarkdown(text) {
         let html = text
-            // Handle code blocks first
             .replace(/```[\s\S]*?```/g, function(match) {
                 const code = match.replace(/```/g, '').trim();
                 return `<pre><code>${escapeHtml(code)}</code></pre>`;
             })
-            // Handle bold
             .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
             .replace(/__([^_]+)__/g, "<strong>$1</strong>")
-            // Handle italic
             .replace(/\*(.*?)\*/g, "<em>$1</em>")
             .replace(/_([^_]+)_/g, "<em>$1</em>")
-            // Handle inline code
             .replace(/`([^`]+)`/g, "<code>$1</code>")
-            // Handle headers
             .replace(/^### (.*?)$/gm, "<h3>$1</h3>")
             .replace(/^## (.*?)$/gm, "<h2>$1</h2>")
             .replace(/^# (.*?)$/gm, "<h1>$1</h1>")
-            // Handle lists
             .replace(/^\* (.*?)$/gm, "<li>$1</li>")
             .replace(/^- (.*?)$/gm, "<li>$1</li>")
             .replace(/^(\d+)\. (.*?)$/gm, "<li>$2</li>")
-            // Wrap consecutive list items in ul tags
             .replace(/(<li>.*?<\/li>)/s, function(match) {
                 if (!match.includes('<ul>')) {
                     return '<ul>' + match + '</ul>';
                 }
                 return match;
             })
-            // Handle line breaks and paragraphs
             .replace(/\n\n+/g, "</p><p>")
             .replace(/\n/g, "<br>");
         
-        // Wrap in paragraph tags if not already
         if (!html.startsWith('<')) {
             html = '<p>' + html + '</p>';
         } else if (!html.startsWith('<p>') && !html.startsWith('<h') && !html.startsWith('<pre') && !html.startsWith('<ul')) {
@@ -222,6 +340,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    function createSaveButton(sectionTitle, sectionContent) {
+        return `<button class="save-note-btn" onclick="saveToNotes('${escapeForAttribute(sectionContent)}', '${escapeForAttribute(sectionTitle)}')">Save to Notes</button>`;
+    }
+
+    function escapeForAttribute(str) {
+        return str.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, ' ').substring(0, 500);
+    }
+
     function displayResults(data, mode) {
         welcomeMessage.style.display = 'none';
         chatOutput.style.display = 'flex';
@@ -232,17 +358,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="result-section" id="section_summary">
                     <h4>Summary</h4>
                     <p class="summary-text">${data.summary}</p>
+                    ${createSaveButton('Summary', data.summary)}
                 </div>
             `;
         }
 
         if (data.key_points && data.key_points.length > 0) {
+            const keyPointsText = data.key_points.join('; ');
             chatOutput.innerHTML += `
                 <div class="result-section" id="section_key_points">
                     <h4>Key Points</h4>
                     <ul>
                         ${data.key_points.map(p => `<li>${p}</li>`).join('')}
                     </ul>
+                    ${createSaveButton('Key Points', keyPointsText)}
                 </div>
             `;
         }
@@ -256,12 +385,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (data.highlights && data.highlights.length > 0) {
+            const highlightsText = data.highlights.join('; ');
             chatOutput.innerHTML += `
                 <div class="result-section" id="section_highlights">
                     <h4>Highlights</h4>
                     <ul>
                         ${data.highlights.map(h => `<li>${h}</li>`).join('')}
                     </ul>
+                    ${createSaveButton('Highlights', highlightsText)}
                 </div>
             `;
         }
@@ -293,6 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function displayStudentResults(data) {
         if (data.definitions && data.definitions.length > 0) {
+            const defsText = data.definitions.map(d => `${d.term}: ${d.definition}`).join('; ');
             chatOutput.innerHTML += `
                 <div class="result-section" id="section_definitions">
                     <h4>Key Definitions</h4>
@@ -302,11 +434,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="definition-text">${d.definition}</div>
                         </div>
                     `).join('')}
+                    ${createSaveButton('Definitions', defsText)}
                 </div>
             `;
         }
 
         if (data.flashcards && data.flashcards.length > 0) {
+            const flashcardsText = data.flashcards.map(f => `Q: ${f.question} A: ${f.answer}`).join('; ');
             chatOutput.innerHTML += `
                 <div class="result-section" id="section_flashcards">
                     <h4>Flashcards</h4>
@@ -316,17 +450,20 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="flashcard-a">A: ${f.answer}</div>
                         </div>
                     `).join('')}
+                    ${createSaveButton('Flashcards', flashcardsText)}
                 </div>
             `;
         }
 
         if (data.exam_notes && data.exam_notes.length > 0) {
+            const examNotesText = data.exam_notes.join('; ');
             chatOutput.innerHTML += `
                 <div class="result-section" id="section_exam_notes">
                     <h4>Exam Notes</h4>
                     <ul>
                         ${data.exam_notes.map(n => `<li>${n}</li>`).join('')}
                     </ul>
+                    ${createSaveButton('Exam Notes', examNotesText)}
                 </div>
             `;
         }
@@ -338,22 +475,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="result-section" id="section_methodology">
                     <h4>Methodology</h4>
                     <p class="summary-text">${data.methodology}</p>
+                    ${createSaveButton('Methodology', data.methodology)}
                 </div>
             `;
         }
 
         if (data.results && data.results.length > 0) {
+            const resultsText = data.results.join('; ');
             chatOutput.innerHTML += `
                 <div class="result-section" id="section_results">
                     <h4>Key Results</h4>
                     <ul>
                         ${data.results.map(r => `<li>${r}</li>`).join('')}
                     </ul>
+                    ${createSaveButton('Key Results', resultsText)}
                 </div>
             `;
         }
 
         if (data.statistics && data.statistics.length > 0) {
+            const statsText = data.statistics.map(s => `${s.metric}: ${s.value}`).join('; ');
             chatOutput.innerHTML += `
                 <div class="result-section" id="section_statistics">
                     <h4>Statistics</h4>
@@ -363,17 +504,20 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span class="kpi-value">${s.value}</span>
                         </div>
                     `).join('')}
+                    ${createSaveButton('Statistics', statsText)}
                 </div>
             `;
         }
 
         if (data.research_gaps && data.research_gaps.length > 0) {
+            const gapsText = data.research_gaps.join('; ');
             chatOutput.innerHTML += `
                 <div class="result-section" id="section_research_gaps">
                     <h4>Research Gaps</h4>
                     <ul>
                         ${data.research_gaps.map(g => `<li>${g}</li>`).join('')}
                     </ul>
+                    ${createSaveButton('Research Gaps', gapsText)}
                 </div>
             `;
         }
@@ -381,6 +525,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function displayProfessionalResults(data) {
         if (data.kpis && data.kpis.length > 0) {
+            const kpisText = data.kpis.map(k => `${k.metric}: ${k.value}`).join('; ');
             chatOutput.innerHTML += `
                 <div class="result-section" id="section_kpis">
                     <h4>Key Performance Indicators</h4>
@@ -390,11 +535,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span class="kpi-value">${k.value} ${k.trend ? '(' + k.trend + ')' : ''}</span>
                         </div>
                     `).join('')}
+                    ${createSaveButton('KPIs', kpisText)}
                 </div>
             `;
         }
 
         if (data.pricing && data.pricing.length > 0) {
+            const pricingText = data.pricing.map(p => `${p.tier}: ${p.price}`).join('; ');
             chatOutput.innerHTML += `
                 <div class="result-section" id="section_pricing">
                     <h4>Pricing</h4>
@@ -404,22 +551,26 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="definition-text">${p.features ? p.features.join(', ') : ''}</div>
                         </div>
                     `).join('')}
+                    ${createSaveButton('Pricing', pricingText)}
                 </div>
             `;
         }
 
         if (data.usp && data.usp.length > 0) {
+            const uspText = data.usp.join('; ');
             chatOutput.innerHTML += `
                 <div class="result-section" id="section_usp">
                     <h4>Unique Selling Points</h4>
                     <ul>
                         ${data.usp.map(u => `<li>${u}</li>`).join('')}
                     </ul>
+                    ${createSaveButton('USPs', uspText)}
                 </div>
             `;
         }
 
         if (data.swot) {
+            const swotText = `Strengths: ${(data.swot.strengths || []).join(', ')}; Weaknesses: ${(data.swot.weaknesses || []).join(', ')}; Opportunities: ${(data.swot.opportunities || []).join(', ')}; Threats: ${(data.swot.threats || []).join(', ')}`;
             chatOutput.innerHTML += `
                 <div class="result-section" id="section_swot">
                     <h4>SWOT Analysis</h4>
@@ -441,17 +592,20 @@ document.addEventListener('DOMContentLoaded', function() {
                             <ul>${(data.swot.threats || []).map(t => `<li>${t}</li>`).join('')}</ul>
                         </div>
                     </div>
+                    ${createSaveButton('SWOT Analysis', swotText)}
                 </div>
             `;
         }
 
         if (data.action_items && data.action_items.length > 0) {
+            const actionItemsText = data.action_items.join('; ');
             chatOutput.innerHTML += `
                 <div class="result-section" id="section_action_items">
                     <h4>Action Items</h4>
                     <ul>
                         ${data.action_items.map(a => `<li>${a}</li>`).join('')}
                     </ul>
+                    ${createSaveButton('Action Items', actionItemsText)}
                 </div>
             `;
         }

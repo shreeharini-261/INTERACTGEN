@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AURA - Adaptive Web Agent</title>
+    <title>CogniParse - Adaptive Web Agent</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
     <div class="container">
         <aside class="sidebar">
             <div class="logo">
-                <h1>AURA</h1>
+                <h1>CogniParse</h1>
                 <p class="tagline">Adaptive Web Agent</p>
             </div>
             
@@ -45,7 +45,7 @@
             
             <div class="results-container" id="results-container">
                 <div class="welcome-message" id="welcome-message">
-                    <h3>Welcome to AURA</h3>
+                    <h3>Welcome to CogniParse</h3>
                     <p>Enter a URL and select a mode to analyze any webpage.</p>
                     <ul>
                         <li><strong>Student:</strong> Study notes, flashcards, definitions</li>
@@ -79,6 +79,13 @@
             </div>
             <iframe id="web-iframe" src="https://en.wikipedia.org/wiki/Artificial_intelligence"></iframe>
         </main>
+    </div>
+    
+    <div id="notepadToggle">Notepad</div>
+    <div id="notepadDrawer">
+        <h3>Notepad</h3>
+        <div id="notesContainer"></div>
+        <button id="clearNotesBtn">Clear Notes</button>
     </div>
     
     <script src="/static/script.js"></script>
